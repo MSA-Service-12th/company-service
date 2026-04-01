@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: company-service
+
+  threads:
+    virtual:
+      enabled: true
+
+  config:
+    import: 'optional:configserver:'
+  cloud:
+    config:
+      discovery:
+        enabled: true
+        service-id: config-server
+
+  # datasource & jpa 설정은 config-server
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+eureka:
+  client:
+    fetch-registry: true
+    register-with-eureka: true
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:18761/eureka}
+
+tmap:
+  api:
+    key: ${TMAP_API_KEY}
