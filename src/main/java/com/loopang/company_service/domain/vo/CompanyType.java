@@ -1,4 +1,4 @@
-package com.loopang.company_service.domain.entity;
+package com.loopang.company_service.domain.vo;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

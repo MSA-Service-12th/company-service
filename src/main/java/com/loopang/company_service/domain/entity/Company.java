@@ -2,7 +2,10 @@ package com.loopang.company_service.domain.entity;
 
 import com.loopang.common.domain.BaseUserEntity;
 import com.loopang.common.exception.BadRequestException;
+import com.loopang.common.exception.ForbiddenException;
 import com.loopang.company_service.domain.vo.CompanyAddress;
+import com.loopang.company_service.domain.vo.CompanyStatus;
+import com.loopang.company_service.domain.vo.CompanyType;
 import com.loopang.company_service.domain.vo.HubInfo;
 import com.loopang.company_service.domain.vo.ManagerInfo;
 import jakarta.persistence.Column;
@@ -27,8 +30,14 @@ import org.hibernate.annotations.SQLRestriction;
 @Table(
     name = "p_companies",
     indexes = {
+        // 1. 업체명 검색 및 중복 체크용
         @Index(name = "idx_company_name", columnList = "name"),
-        @Index(name = "idx_company_type", columnList = "type")
+
+        // 2. 허브별/타입별/상태별 복합 필터링용
+        @Index(name = "idx_company_hub_type_status", columnList = "hub_id, type, status, deleted_at"),
+
+        // 3. 기본 목록 조회 시 최신순 정렬용
+        @Index(name = "idx_company_created_at_desc", columnList = "createdAt DESC")
     }
 )
 @Getter
@@ -78,7 +87,7 @@ public class Company extends BaseUserEntity {
       CompanyAddress address, ManagerInfo manager, HubInfo hub) {
     // 무결성 검증
     validateRequiredFields(name, type, address, hub);
-    this.name = name;
+    this.name = name.trim();
     this.type = type;
     this.status = CompanyStatus.OPEN;
     this.address = address;
@@ -110,11 +119,20 @@ public class Company extends BaseUserEntity {
     if (name == null || name.isBlank()) {
       throw new BadRequestException("업체 이름은 필수입니다.");
     }
-    if (name.length() > 100) {
+
+    String trimmedName = name.trim();
+
+    if (trimmedName.length() > 100) {
       throw new BadRequestException("업체 이름은 100자를 초과할 수 없습니다.");
     }
-    if (!COMPANY_NAME_PATTERN.matcher(name).matches()) {
+    if (!COMPANY_NAME_PATTERN.matcher(trimmedName).matches()) {
       throw new BadRequestException("업체 이름 형식이 올바르지 않습니다.");
+    }
+  }
+
+  private void validateNotDeleted() {
+    if (super.isDeleted()) { // BaseUserEntity의 삭제 여부 확인 메서드
+      throw new ForbiddenException("이미 삭제된 업체입니다.");
     }
   }
 
@@ -138,13 +156,16 @@ public class Company extends BaseUserEntity {
    * 업체 기본 정보 수정 (이름, 주소, 운영 상태)
    */
   public void updateCompanyInfo(String name, CompanyAddress address, CompanyStatus status) {
+
+    validateNotDeleted(); // 업체 삭제 여부 최우선 검증
+
     // 이름 무결성 검증
     validateCompanyName(name);
 
     // 상태 무결성 검증
     this.status.validateTransitionTo(status);
 
-    this.name = name;
+    this.name = name.trim();
     this.address = address;
     this.status = status;
   }
@@ -154,8 +175,10 @@ public class Company extends BaseUserEntity {
    * 담당자 정보 업데이트
    */
   public void updateManagerInfo(ManagerInfo manager) {
-    if (manager == null)
+    validateNotDeleted(); // 업체 삭제 여부 최우선 검증
+    if (manager == null) {
       throw new BadRequestException("업데이트할 관리자 정보가 없습니다.");
+    }
     this.manager = manager;
   }
 
@@ -163,6 +186,7 @@ public class Company extends BaseUserEntity {
    * 관리 허브 정보 업데이트
    */
   public void updateHubInfo(HubInfo hub) {
+    validateNotDeleted(); // 업체 삭제 여부 최우선 검증
     if (hub == null) {
       throw new BadRequestException("업데이트할 허브 정보가 없습니다.");
     }
@@ -196,6 +220,10 @@ public class Company extends BaseUserEntity {
    * @param userId 삭제를 수행하는 관리자 ID
    */
   public void deleteCompany(UUID userId) {
-    super.delete(userId); // BaseUserEntity의 delete(userId) 호출
+    validateNotDeleted(); // 업체 삭제 여부 최우선 검증
+    if (userId == null) {
+      throw new BadRequestException("삭제할 업체 ID가 없습니다.");
+    }
+    super.delete(userId); // BaseUserEntity의 delete(userId)
   }
 }

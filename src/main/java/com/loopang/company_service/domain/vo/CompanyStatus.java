@@ -1,6 +1,6 @@
-package com.loopang.company_service.domain.entity;
+package com.loopang.company_service.domain.vo;
 
-import com.loopang.common.exception.BadRequestException;
+import com.loopang.common.exception.ConflictException;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -38,8 +38,8 @@ public enum CompanyStatus {
     };
 
     if (!isAllowed) {
-      throw new BadRequestException(
-          String.format("업체 상태를 %s에서 %s(으)로 변경할 수 없습니다.", this.name(), nextStatus.name())
+      throw new ConflictException(
+          String.format("%s 상태에서는 %s 상태로 변경할 수 없습니다.", this.name(), nextStatus.name())
       );
     }
 
