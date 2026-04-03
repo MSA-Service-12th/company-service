@@ -31,7 +31,7 @@ public class CompanyQueryRepositoryImpl implements CompanyQueryRepository {
     List<Company> content = queryFactory.selectFrom(company).where(
             // 명세서 조건 반영
             combineKeyword(condition.keyword()),          // keyword (이름 OR 주소)
-            nameContains(condition.managerName()),        // 단독 name
+            nameContains(condition.name()),        // 단독 name
             typeEq(condition.type()),                     // type (equals)
             statusEq(condition.status()),                 // status (equals)
             managerNameContains(condition.managerName()), // managerName (contains)
