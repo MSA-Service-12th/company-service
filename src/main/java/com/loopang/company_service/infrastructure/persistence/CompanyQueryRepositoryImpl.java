@@ -43,7 +43,7 @@ public class CompanyQueryRepositoryImpl implements CompanyQueryRepository {
 
     // 2. 카운트 쿼리
     Long total = queryFactory.select(company.count()).from(company)
-        .where(combineKeyword(condition.keyword()), nameContains(condition.managerName()),
+        .where(combineKeyword(condition.keyword()), nameContains(condition.name()),
             typeEq(condition.type()), statusEq(condition.status()),
             managerNameContains(condition.managerName()), hubIdEq(condition.hubId()),
             company.deletedAt.isNull())

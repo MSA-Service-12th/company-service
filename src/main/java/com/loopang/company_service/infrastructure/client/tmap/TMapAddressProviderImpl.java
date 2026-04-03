@@ -40,6 +40,10 @@ public class TMapAddressProviderImpl implements AddressProvider {
       // 4. 데이터 추출 및 변환
       var coordinate = response.getCoordinateInfo().getCoordinate().getFirst();
 
+      // [개선] 문자열 좌표를 double로 안전하게 변환
+      double lon = safeParseDouble(coordinate.getNewLon(), "longitude (newLon)");
+      double lat = safeParseDouble(coordinate.getNewLat(), "latitude (newLat)");
+
       String dongDoro =
           (coordinate.getNewRoadName() != null && !coordinate.getNewRoadName().isBlank())
               ? coordinate.getNewRoadName()
@@ -74,6 +78,20 @@ public class TMapAddressProviderImpl implements AddressProvider {
     } catch (Exception e) {
       log.error("[TMapProvider] T-map API 호출 중 예상치 못한 오류 발생: ", e);
       throw new CompanyInternalServerException("주소 서비스 이용 중 내부 오류가 발생했습니다.");
+    }
+  }
+
+  // 숫자 변환 시 발생할 수 있는 NumberFormatException 방지
+  private double safeParseDouble(String value, String fieldName) {
+    if (value == null || value.isBlank()) {
+      log.error("[TMap] 좌표 필드({}) 값이 비어있습니다.", fieldName);
+      throw new CompanyInternalServerException("T-map 응답에서 필수 좌표 정보를 찾을 수 없습니다.");
+    }
+    try {
+      return Double.parseDouble(value);
+    } catch (NumberFormatException e) {
+      log.error("[TMap] 좌표 필드({}) 숫자 변환 실패. 수신값: {}", fieldName, value);
+      throw new CompanyInternalServerException("유효하지 않은 좌표 형식이 수신되었습니다.");
     }
   }
 

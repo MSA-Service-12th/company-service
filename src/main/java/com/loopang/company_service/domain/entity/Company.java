@@ -1,8 +1,6 @@
 package com.loopang.company_service.domain.entity;
 
 import com.loopang.common.domain.BaseUserEntity;
-import com.loopang.common.exception.BadRequestException;
-import com.loopang.common.exception.ForbiddenException;
 import com.loopang.company_service.domain.exception.CompanyBadRequestException;
 import com.loopang.company_service.domain.exception.CompanyForbiddenException;
 import com.loopang.company_service.domain.vo.CompanyAddress;
@@ -20,6 +18,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import lombok.AccessLevel;
@@ -226,6 +226,13 @@ public class Company extends BaseUserEntity {
     if (userId == null) {
       throw new CompanyBadRequestException("삭제를 수행하는 사용자 ID가 없습니다.");
     }
+    // 업체명 뒤에 삭제 시간과 UUID 일부를 붙여 Unique 제약 조건 충돌 방지
+    // 예: "루팡물류" -> "루팡물류_deleted_20260403_a1b2c3d4"
+    this.name = String.format("%s_deleted_%s_%s",
+        this.name,
+        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")),
+        UUID.randomUUID().toString().substring(0, 8)
+    );
     super.delete(userId); // BaseUserEntity의 delete(userId)
   }
 }
