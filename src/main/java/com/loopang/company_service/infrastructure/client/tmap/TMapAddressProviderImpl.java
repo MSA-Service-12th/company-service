@@ -1,10 +1,12 @@
 package com.loopang.company_service.infrastructure.client.tmap;
 
-import com.loopang.common.exception.BadRequestException;
-import com.loopang.common.exception.InternalServerException;
+import com.loopang.common.exception.CustomException;
 import com.loopang.company_service.domain.dto.CoordinateData;
+import com.loopang.company_service.domain.exception.CompanyBadRequestException;
+import com.loopang.company_service.domain.exception.CompanyInternalServerException;
 import com.loopang.company_service.domain.service.AddressProvider;
 import com.loopang.company_service.infrastructure.client.tmap.dto.TMapGeoResponse;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,55 +25,78 @@ public class TMapAddressProviderImpl implements AddressProvider {
 
   @Override
   public CoordinateData findCoordinate(String fullAddress) {
+    // 1. 입력값 검증 (Fail-Fast)
+    if (fullAddress == null || fullAddress.isBlank()) {
+      throw new CompanyBadRequestException("좌표 변환을 위한 주소 값이 비어있습니다.");
+    }
+
     try {
-      // 1. T-map API 호출
+      // 2. T-map API 호출
       TMapGeoResponse response = tMapFeignClient.getGeoInfo(apiKey, fullAddress, "1", "WGS84GEO");
 
-      // 2. 검색 결과 존재 여부 검증 (추출한 validateResponse 활용)
+      // 3. 응답 데이터 구조 검증
       validateResponse(response, fullAddress);
 
-      // 3. 응답 데이터 추출 (가장 정확도가 높은 첫 번째 결과 사용)
+      // 4. 데이터 추출 및 변환
       var coordinate = response.getCoordinateInfo().getCoordinate().getFirst();
 
-      // dongDoro 결정 로직: 도로명이 있으면 도로명, 없으면 법정동 사용
-      String dongDoro = (coordinate.getNewRoadName() != null && !coordinate.getNewRoadName().isBlank())
-          ? coordinate.getNewRoadName()
-          : coordinate.getLegalDong();
+      String dongDoro =
+          (coordinate.getNewRoadName() != null && !coordinate.getNewRoadName().isBlank())
+              ? coordinate.getNewRoadName()
+              : coordinate.getLegalDong();
 
       return new CoordinateData(
           Double.parseDouble(coordinate.getNewLon()),
           Double.parseDouble(coordinate.getNewLat()),
           coordinate.getCityDo(),
           coordinate.getGuGun(),
-          dongDoro // 통합된 동/도로명 정보
+          dongDoro
       );
 
-    } catch (BadRequestException e) {
+    } catch (CustomException e) {
+      // validateResponse에서 던진 예외 그대로 전파
       throw e;
+
+    } catch (FeignException.Unauthorized | FeignException.Forbidden e) {
+      // API Key 인증 실패 또는 권한(쿼터 초과 등) 문제
+      log.error("[TMapProvider] API 키 인증 실패 또는 사용량 제한 초과: {}", e.getMessage());
+      throw new CompanyInternalServerException("주소 서비스 인증 오류가 발생했습니다. 관리자에게 문의하세요.");
+
+    } catch (FeignException.NotFound e) {
+      // T-map 서버에서 404를 던진 경우 (주소가 없는 경우 포함)
+      throw new CompanyBadRequestException("해당 주소를 찾을 수 없습니다: " + fullAddress);
+
+    } catch (feign.RetryableException e) {
+      // 외부망 연결 타임아웃
+      log.error("[TMapProvider] T-map 서버 연결 타임아웃: {}", e.getMessage());
+      throw new CompanyInternalServerException("주소 변환 서비스 응답이 지연되고 있습니다.");
+
     } catch (Exception e) {
-      log.error("T-map API 호출 중 예외 발생: ", e);
-      throw new InternalServerException("주소 서비스 이용 중 문제가 발생했습니다.");
+      log.error("[TMapProvider] T-map API 호출 중 예상치 못한 오류 발생: ", e);
+      throw new CompanyInternalServerException("주소 서비스 이용 중 내부 오류가 발생했습니다.");
     }
   }
 
   private void validateResponse(TMapGeoResponse response, String fullAddress) {
     if (response == null || response.getCoordinateInfo() == null ||
         CollectionUtils.isEmpty(response.getCoordinateInfo().getCoordinate())) {
-      throw new BadRequestException("유효하지 않은 주소입니다: " + fullAddress);
+      throw new CompanyBadRequestException("유효하지 않거나 결과가 없는 주소입니다: " + fullAddress);
     }
 
     var coordinate = response.getCoordinateInfo().getCoordinate().getFirst();
 
-    if (coordinate.getNewLat() == null || coordinate.getNewLon() == null) {
-      throw new BadRequestException("좌표 정보를 찾을 수 없습니다: " + fullAddress);
+    // 좌표값 존재 여부 확인
+    if (coordinate.getNewLat() == null || coordinate.getNewLat().isBlank() ||
+        coordinate.getNewLon() == null || coordinate.getNewLon().isBlank()) {
+      throw new CompanyBadRequestException("주소에 대한 좌표 정보를 추출할 수 없습니다: " + fullAddress);
     }
 
-    // 법정동과 도로명이 모두 없는 경우에만 에러 처리
+    // 법정동/도로명 존재 여부 확인
     boolean hasDong = coordinate.getLegalDong() != null && !coordinate.getLegalDong().isBlank();
     boolean hasRoad = coordinate.getNewRoadName() != null && !coordinate.getNewRoadName().isBlank();
 
     if (!hasDong && !hasRoad) {
-      throw new BadRequestException("동/도로명 정보를 추출할 수 없는 주소입니다: " + fullAddress);
+      throw new CompanyBadRequestException("주소 체계가 올바르지 않은 지역입니다: " + fullAddress);
     }
   }
 }

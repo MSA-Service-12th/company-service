@@ -31,7 +31,7 @@ ext {
 dependencies {
     // 1. Loopang Common (핵심 의존성)
     // Web, JPA, Security, Validation, Kafka, OpenFeign
-    implementation 'com.loopang:common:0.0.1-SNAPSHOT'
+    implementation 'com.loopang:common:0.0.4-SNAPSHOT'
 
     // 2. Querydsl APT
     implementation 'com.querydsl:querydsl-jpa:5.1.0:jakarta'

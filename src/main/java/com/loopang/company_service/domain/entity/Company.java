@@ -4,7 +4,7 @@ import com.loopang.common.domain.BaseUserEntity;
 import com.loopang.common.exception.BadRequestException;
 import com.loopang.common.exception.ForbiddenException;
 import com.loopang.company_service.domain.exception.CompanyBadRequestException;
-import com.loopang.company_service.domain.exception.CompanyForbidenException;
+import com.loopang.company_service.domain.exception.CompanyForbiddenException;
 import com.loopang.company_service.domain.vo.CompanyAddress;
 import com.loopang.company_service.domain.vo.CompanyStatus;
 import com.loopang.company_service.domain.vo.CompanyType;
@@ -134,7 +134,7 @@ public class Company extends BaseUserEntity {
 
   private void validateNotDeleted() {
     if (super.isDeleted()) { // BaseUserEntity의 삭제 여부 확인 메서드
-      throw new CompanyForbidenException("이미 삭제된 업체입니다.");
+      throw new CompanyForbiddenException("이미 삭제된 업체입니다.");
     }
   }
 

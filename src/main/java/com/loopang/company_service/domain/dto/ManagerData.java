@@ -1,5 +1,6 @@
 package com.loopang.company_service.domain.dto;
 
+import com.loopang.company_service.domain.exception.CompanyBadRequestException;
 import java.util.UUID;
 
 /**
@@ -12,11 +13,11 @@ public record ManagerData(
 
   public ManagerData {
     if (id == null) {
-      throw new IllegalArgumentException("담당자 ID는 필수입니다.");
+      throw new CompanyBadRequestException("담당자 ID는 필수입니다.");
     }
 
     if (name == null || name.isBlank()) {
-      throw new IllegalArgumentException("담당자명은 필수입니다.");
+      throw new CompanyBadRequestException("담당자명은 필수입니다.");
     }
   }
 }

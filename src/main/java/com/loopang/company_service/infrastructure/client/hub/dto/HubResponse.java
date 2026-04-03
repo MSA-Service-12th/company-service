@@ -2,6 +2,7 @@ package com.loopang.company_service.infrastructure.client.hub.dto;
 
 import com.loopang.common.exception.BadRequestException;
 import com.loopang.company_service.domain.dto.HubData;
+import com.loopang.company_service.domain.exception.CompanyBadRequestException;
 import java.util.UUID;
 
 public record HubResponse(
@@ -16,11 +17,11 @@ public record HubResponse(
   public HubData toData() {
     // 1. 필수 값 존재 여부 검증 (Fail-Fast)
     if (hubId == null) {
-      throw new BadRequestException("허브 서비스로부터 유효한 허브 식별자를 받지 못했습니다.");
+      throw new CompanyBadRequestException("허브 서비스로부터 유효한 허브 식별자를 받지 못했습니다.");
     }
 
     if (name == null || name.isBlank()) {
-      throw new BadRequestException("허브 서비스로부터 유효한 허브 명칭을 받지 못했습니다.");
+      throw new CompanyBadRequestException("허브 서비스로부터 유효한 허브 명칭을 받지 못했습니다.");
     }
 
     // 2. 깨끗한 도메인 DTO로 변환하여 반환
