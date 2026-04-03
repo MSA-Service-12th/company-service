@@ -3,6 +3,8 @@ package com.loopang.company_service.domain.entity;
 import com.loopang.common.domain.BaseUserEntity;
 import com.loopang.common.exception.BadRequestException;
 import com.loopang.common.exception.ForbiddenException;
+import com.loopang.company_service.domain.exception.CompanyBadRequestException;
+import com.loopang.company_service.domain.exception.CompanyForbidenException;
 import com.loopang.company_service.domain.vo.CompanyAddress;
 import com.loopang.company_service.domain.vo.CompanyStatus;
 import com.loopang.company_service.domain.vo.CompanyType;
@@ -59,7 +61,7 @@ public class Company extends BaseUserEntity {
   @GeneratedValue(strategy = GenerationType.UUID)
   private UUID id;
 
-  @Column(nullable = false, length = 100)
+  @Column(nullable = false, length = 100, unique = true)
   private String name;
 
   @Enumerated(EnumType.STRING)
@@ -102,37 +104,37 @@ public class Company extends BaseUserEntity {
     validateCompanyName(name);
 
     if (type == null) {
-      throw new BadRequestException("업체 타입은 필수입니다.");
+      throw new CompanyBadRequestException("업체 타입은 필수입니다.");
     }
     if (address == null) {
-      throw new BadRequestException("업체 주소 정보는 필수입니다.");
+      throw new CompanyBadRequestException("업체 주소 정보는 필수입니다.");
     }
     if (hub == null || hub.getHubId() == null) {
-      throw new BadRequestException("업체는 반드시 특정 허브에 소속되어야 합니다.");
+      throw new CompanyBadRequestException("업체는 반드시 특정 허브에 소속되어야 합니다.");
     }
     if (manager == null || manager.getManagerId() == null) {
-      throw new BadRequestException("업체는 반드시 관리자가 존재해야 합니다.");
+      throw new CompanyBadRequestException("업체는 반드시 관리자가 존재해야 합니다.");
     }
   }
 
   private void validateCompanyName(String name) {
     if (name == null || name.isBlank()) {
-      throw new BadRequestException("업체 이름은 필수입니다.");
+      throw new CompanyBadRequestException("업체 이름은 필수입니다.");
     }
 
     String trimmedName = name.trim();
 
     if (trimmedName.length() > 100) {
-      throw new BadRequestException("업체 이름은 100자를 초과할 수 없습니다.");
+      throw new CompanyBadRequestException("업체 이름은 100자를 초과할 수 없습니다.");
     }
     if (!COMPANY_NAME_PATTERN.matcher(trimmedName).matches()) {
-      throw new BadRequestException("업체 이름 형식이 올바르지 않습니다.");
+      throw new CompanyBadRequestException("업체 이름 형식이 올바르지 않습니다.");
     }
   }
 
   private void validateNotDeleted() {
     if (super.isDeleted()) { // BaseUserEntity의 삭제 여부 확인 메서드
-      throw new ForbiddenException("이미 삭제된 업체입니다.");
+      throw new CompanyForbidenException("이미 삭제된 업체입니다.");
     }
   }
 
@@ -177,7 +179,7 @@ public class Company extends BaseUserEntity {
   public void updateManagerInfo(ManagerInfo manager) {
     validateNotDeleted(); // 업체 삭제 여부 최우선 검증
     if (manager == null) {
-      throw new BadRequestException("업데이트할 관리자 정보가 없습니다.");
+      throw new CompanyBadRequestException("업데이트할 관리자 정보가 없습니다.");
     }
     this.manager = manager;
   }
@@ -188,7 +190,7 @@ public class Company extends BaseUserEntity {
   public void updateHubInfo(HubInfo hub) {
     validateNotDeleted(); // 업체 삭제 여부 최우선 검증
     if (hub == null) {
-      throw new BadRequestException("업데이트할 허브 정보가 없습니다.");
+      throw new CompanyBadRequestException("업데이트할 허브 정보가 없습니다.");
     }
     this.hub = hub;
   }
@@ -222,7 +224,7 @@ public class Company extends BaseUserEntity {
   public void deleteCompany(UUID userId) {
     validateNotDeleted(); // 업체 삭제 여부 최우선 검증
     if (userId == null) {
-      throw new BadRequestException("삭제할 업체 ID가 없습니다.");
+      throw new CompanyBadRequestException("삭제를 수행하는 사용자 ID가 없습니다.");
     }
     super.delete(userId); // BaseUserEntity의 delete(userId)
   }

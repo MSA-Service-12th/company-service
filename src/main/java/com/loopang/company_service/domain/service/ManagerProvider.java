@@ -12,12 +12,7 @@ public interface ManagerProvider {
    * 담당자 ID를 통해 유효한 사용자인지 확인하고 기본 정보를 반환
    *
    * @param managerId 담당자(User)의 식별자
-   * @return 존재하지 않거나 권한이 없는 경우 null 또는 예외 발생
+   * @return 존재하지 않거나, 업체 담당자로 지정될 수 없는 사용자일 경우 예외(NotFound/Forbidden)
    */
   ManagerData getManagerData(UUID managerId);
-
-  /**
-   * (선택 사항) 해당 유저가 '업체 관리자' 권한을 가지고 있는지 별도로 체크가 필요할 때
-   */
-  void validateManagerRole(UUID managerId);
 }

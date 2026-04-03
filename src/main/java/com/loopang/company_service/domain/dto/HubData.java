@@ -14,5 +14,9 @@ public record HubData(
     if (id == null) {
       throw new IllegalArgumentException("허브 ID는 필수입니다.");
     }
+
+    if (name == null || name.isBlank()) {
+      throw new IllegalArgumentException("허브명은 필수입니다.");
+    }
   }
 }

@@ -2,14 +2,15 @@ package com.loopang.company_service.domain.service;
 
 import java.util.List;
 
-/**
- * 도메인 행위별 권한 검증을 위한 핵심 인터페이스
- */
 public interface RoleCheck {
 
-  // 단일 권한 확인: 특정 역할 하나만 허용할 때
+  /**
+   * @param requiredRole 검증할 권한 명칭 (null 이거나 빈 문자열일 경우 false 반환)
+   */
   boolean hasRole(String requiredRole);
 
-  // 다중 권한 확인: 여러 역할 중 하나라도 포함될 때 (예: MASTER 또는 HUB_MANAGER)
+  /**
+   * @param requiredRoles 검증할 권한 리스트 (null 이거나 빈 리스트일 경우 false 반환)
+   */
   boolean hasRole(List<String> requiredRoles);
 }

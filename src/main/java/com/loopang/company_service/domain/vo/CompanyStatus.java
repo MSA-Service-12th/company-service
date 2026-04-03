@@ -1,6 +1,6 @@
 package com.loopang.company_service.domain.vo;
 
-import com.loopang.common.exception.ConflictException;
+import com.loopang.company_service.domain.exception.CompanyConflictException;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -38,7 +38,7 @@ public enum CompanyStatus {
     };
 
     if (!isAllowed) {
-      throw new ConflictException(
+      throw new CompanyConflictException(
           String.format("%s 상태에서는 %s 상태로 변경할 수 없습니다.", this.name(), nextStatus.name())
       );
     }
