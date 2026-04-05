@@ -40,7 +40,7 @@ public class TMapAddressProviderImpl implements AddressProvider {
       // 4. 데이터 추출 및 변환
       var coordinate = response.getCoordinateInfo().getCoordinate().getFirst();
 
-      // [개선] 문자열 좌표를 double로 안전하게 변환
+      // 문자열 좌표를 double로 안전하게 변환
       double lon = safeParseDouble(coordinate.getNewLon(), "longitude (newLon)");
       double lat = safeParseDouble(coordinate.getNewLat(), "latitude (newLat)");
 
@@ -50,8 +50,8 @@ public class TMapAddressProviderImpl implements AddressProvider {
               : coordinate.getLegalDong();
 
       return new CoordinateData(
-          Double.parseDouble(coordinate.getNewLon()),
-          Double.parseDouble(coordinate.getNewLat()),
+          lon,
+          lat,
           coordinate.getCityDo(),
           coordinate.getGuGun(),
           dongDoro

@@ -33,13 +33,13 @@ import org.hibernate.annotations.SQLRestriction;
     name = "p_companies",
     indexes = {
         // 1. 업체명 검색 및 중복 체크용
-        @Index(name = "idx_company_name", columnList = "name"),
+        @Index(name = "idx_company_name_status", columnList = "deleted_at, name, status"),
 
         // 2. 허브별/타입별/상태별 복합 필터링용
-        @Index(name = "idx_company_hub_type_status", columnList = "hub_id, type, status, deleted_at"),
+        @Index(name = "idx_company_hub_type_status", columnList = "hub_id, deleted_at, type, status"),
 
         // 3. 기본 목록 조회 시 최신순 정렬용
-        @Index(name = "idx_company_created_at_desc", columnList = "createdAt DESC")
+        @Index(name = "idx_company_list_order", columnList = "deleted_at, created_at DESC")
     }
 )
 @Getter
@@ -214,6 +214,13 @@ public class Company extends BaseUserEntity {
    */
   public boolean isReceiver() {
     return type.isReceiver();
+  }
+
+  /**
+   * 업체 삭제 전 삭제중 상태 변경(시간차 공격 방지)
+   */
+  public void markAsDeleting() {
+    this.status = CompanyStatus.DELETING;
   }
 
   /**

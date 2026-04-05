@@ -17,6 +17,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.StringUtils;
 
 @Repository
 @RequiredArgsConstructor
@@ -31,7 +32,7 @@ public class CompanyQueryRepositoryImpl implements CompanyQueryRepository {
     List<Company> content = queryFactory.selectFrom(company).where(
             // 명세서 조건 반영
             combineKeyword(condition.keyword()),          // keyword (이름 OR 주소)
-            nameContains(condition.name()),               // 단독 name
+            nameStartsWith(condition.name()),               // 단독 name
             typeEq(condition.type()),                     // type (equals)
             statusEq(condition.status()),                 // status (equals)
             managerNameContains(condition.managerName()), // managerName (contains)
@@ -43,7 +44,7 @@ public class CompanyQueryRepositoryImpl implements CompanyQueryRepository {
 
     // 2. 카운트 쿼리
     Long total = queryFactory.select(company.count()).from(company)
-        .where(combineKeyword(condition.keyword()), nameContains(condition.name()),
+        .where(combineKeyword(condition.keyword()), nameStartsWith(condition.name()),
             typeEq(condition.type()), statusEq(condition.status()),
             managerNameContains(condition.managerName()), hubIdEq(condition.hubId()),
             company.deletedAt.isNull())
@@ -62,8 +63,8 @@ public class CompanyQueryRepositoryImpl implements CompanyQueryRepository {
     return company.name.contains(keyword).or(company.address.fullAddress.contains(keyword));
   }
 
-  private BooleanExpression nameContains(String name) {
-    return (name != null && !name.isBlank()) ? company.name.contains(name) : null;
+  private BooleanExpression nameStartsWith(String name) {
+    return StringUtils.hasText(name) ? company.name.startsWith(name) : null;
   }
 
   private BooleanExpression typeEq(CompanyType type) {

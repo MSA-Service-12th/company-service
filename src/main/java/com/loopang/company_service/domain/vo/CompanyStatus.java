@@ -9,7 +9,8 @@ import lombok.RequiredArgsConstructor;
 public enum CompanyStatus {
 
   OPEN("운영중"),
-  CLOSED("운영중단");
+  CLOSED("운영중단"),
+  DELETING("삭제중");
 //  ON_LEAVE("휴무"); // 고도화 고려
 
   private final String description;
@@ -34,6 +35,7 @@ public enum CompanyStatus {
     boolean isAllowed = switch (this) {
       case OPEN -> nextStatus == CLOSED;  // 영업 -> 폐업 허용
       case CLOSED -> nextStatus == OPEN;  // 폐업 -> 영업 재개 허용
+      case DELETING -> false;
       // default -> false; // 나중에 여기서 필터링
     };
 
