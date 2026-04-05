@@ -1,6 +1,6 @@
 package com.loopang.company_service.domain.vo;
 
-import com.loopang.common.exception.BadRequestException;
+import com.loopang.company_service.domain.exception.CompanyBadRequestException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import java.util.UUID;
@@ -24,12 +24,12 @@ public class HubInfo {
   public static HubInfo create(UUID hubId, String hubName) {
     // 1. Hub ID 검증
     if (hubId == null) {
-      throw new BadRequestException("허브 정보 등록 시, 소속 허브 식별자(ID)는 필수 입력 값입니다.");
+      throw new CompanyBadRequestException("허브 정보 등록 시, 소속 허브 식별자(ID)는 필수 입력 값입니다.");
     }
 
     // 2. Hub Name 검증
     if (hubName == null || hubName.isBlank()) {
-      throw new BadRequestException("허브 정보 등록 시, 소속 허브 명칭은 필수 입력 값입니다.");
+      throw new CompanyBadRequestException("허브 정보 등록 시, 소속 허브 명칭은 필수 입력 값입니다.");
     }
 
     return new HubInfo(hubId, hubName);

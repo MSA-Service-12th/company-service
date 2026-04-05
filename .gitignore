@@ -2,6 +2,7 @@ HELP.md
 .gradle
 build/
 gradle.properties
+all_java_codes.txt
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/

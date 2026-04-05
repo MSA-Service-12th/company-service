@@ -1,8 +1,8 @@
 package com.loopang.company_service.domain.entity;
 
 import com.loopang.common.domain.BaseUserEntity;
-import com.loopang.common.exception.BadRequestException;
-import com.loopang.common.exception.ForbiddenException;
+import com.loopang.company_service.domain.exception.CompanyBadRequestException;
+import com.loopang.company_service.domain.exception.CompanyForbiddenException;
 import com.loopang.company_service.domain.vo.CompanyAddress;
 import com.loopang.company_service.domain.vo.CompanyStatus;
 import com.loopang.company_service.domain.vo.CompanyType;
@@ -18,6 +18,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import lombok.AccessLevel;
@@ -31,13 +33,13 @@ import org.hibernate.annotations.SQLRestriction;
     name = "p_companies",
     indexes = {
         // 1. 업체명 검색 및 중복 체크용
-        @Index(name = "idx_company_name", columnList = "name"),
+        @Index(name = "idx_company_name_status", columnList = "deleted_at, name, status"),
 
         // 2. 허브별/타입별/상태별 복합 필터링용
-        @Index(name = "idx_company_hub_type_status", columnList = "hub_id, type, status, deleted_at"),
+        @Index(name = "idx_company_hub_type_status", columnList = "hub_id, deleted_at, type, status"),
 
         // 3. 기본 목록 조회 시 최신순 정렬용
-        @Index(name = "idx_company_created_at_desc", columnList = "createdAt DESC")
+        @Index(name = "idx_company_list_order", columnList = "deleted_at, created_at DESC")
     }
 )
 @Getter
@@ -59,7 +61,7 @@ public class Company extends BaseUserEntity {
   @GeneratedValue(strategy = GenerationType.UUID)
   private UUID id;
 
-  @Column(nullable = false, length = 100)
+  @Column(nullable = false, length = 100, unique = true)
   private String name;
 
   @Enumerated(EnumType.STRING)
@@ -102,37 +104,37 @@ public class Company extends BaseUserEntity {
     validateCompanyName(name);
 
     if (type == null) {
-      throw new BadRequestException("업체 타입은 필수입니다.");
+      throw new CompanyBadRequestException("업체 타입은 필수입니다.");
     }
     if (address == null) {
-      throw new BadRequestException("업체 주소 정보는 필수입니다.");
+      throw new CompanyBadRequestException("업체 주소 정보는 필수입니다.");
     }
     if (hub == null || hub.getHubId() == null) {
-      throw new BadRequestException("업체는 반드시 특정 허브에 소속되어야 합니다.");
+      throw new CompanyBadRequestException("업체는 반드시 특정 허브에 소속되어야 합니다.");
     }
     if (manager == null || manager.getManagerId() == null) {
-      throw new BadRequestException("업체는 반드시 관리자가 존재해야 합니다.");
+      throw new CompanyBadRequestException("업체는 반드시 관리자가 존재해야 합니다.");
     }
   }
 
   private void validateCompanyName(String name) {
     if (name == null || name.isBlank()) {
-      throw new BadRequestException("업체 이름은 필수입니다.");
+      throw new CompanyBadRequestException("업체 이름은 필수입니다.");
     }
 
     String trimmedName = name.trim();
 
     if (trimmedName.length() > 100) {
-      throw new BadRequestException("업체 이름은 100자를 초과할 수 없습니다.");
+      throw new CompanyBadRequestException("업체 이름은 100자를 초과할 수 없습니다.");
     }
     if (!COMPANY_NAME_PATTERN.matcher(trimmedName).matches()) {
-      throw new BadRequestException("업체 이름 형식이 올바르지 않습니다.");
+      throw new CompanyBadRequestException("업체 이름 형식이 올바르지 않습니다.");
     }
   }
 
   private void validateNotDeleted() {
     if (super.isDeleted()) { // BaseUserEntity의 삭제 여부 확인 메서드
-      throw new ForbiddenException("이미 삭제된 업체입니다.");
+      throw new CompanyForbiddenException("이미 삭제된 업체입니다.");
     }
   }
 
@@ -177,7 +179,7 @@ public class Company extends BaseUserEntity {
   public void updateManagerInfo(ManagerInfo manager) {
     validateNotDeleted(); // 업체 삭제 여부 최우선 검증
     if (manager == null) {
-      throw new BadRequestException("업데이트할 관리자 정보가 없습니다.");
+      throw new CompanyBadRequestException("업데이트할 관리자 정보가 없습니다.");
     }
     this.manager = manager;
   }
@@ -188,7 +190,7 @@ public class Company extends BaseUserEntity {
   public void updateHubInfo(HubInfo hub) {
     validateNotDeleted(); // 업체 삭제 여부 최우선 검증
     if (hub == null) {
-      throw new BadRequestException("업데이트할 허브 정보가 없습니다.");
+      throw new CompanyBadRequestException("업데이트할 허브 정보가 없습니다.");
     }
     this.hub = hub;
   }
@@ -215,6 +217,13 @@ public class Company extends BaseUserEntity {
   }
 
   /**
+   * 업체 삭제 전 삭제중 상태 변경(시간차 공격 방지)
+   */
+  public void markAsDeleting() {
+    this.status = CompanyStatus.DELETING;
+  }
+
+  /**
    * 업체 삭제 (Soft Delete 활용)
    *
    * @param userId 삭제를 수행하는 관리자 ID
@@ -222,8 +231,15 @@ public class Company extends BaseUserEntity {
   public void deleteCompany(UUID userId) {
     validateNotDeleted(); // 업체 삭제 여부 최우선 검증
     if (userId == null) {
-      throw new BadRequestException("삭제할 업체 ID가 없습니다.");
+      throw new CompanyBadRequestException("삭제를 수행하는 사용자 ID가 없습니다.");
     }
+    // 업체명 뒤에 삭제 시간과 UUID 일부를 붙여 Unique 제약 조건 충돌 방지
+    // 예: "루팡물류" -> "루팡물류_deleted_20260403_a1b2c3d4"
+    this.name = String.format("%s_deleted_%s_%s",
+        this.name,
+        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")),
+        UUID.randomUUID().toString().substring(0, 8)
+    );
     super.delete(userId); // BaseUserEntity의 delete(userId)
   }
 }
