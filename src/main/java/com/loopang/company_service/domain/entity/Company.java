@@ -19,6 +19,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
@@ -41,6 +42,13 @@ import org.hibernate.annotations.SQLRestriction;
 
         // 3. 기본 목록 조회 시 최신순 정렬용
         @Index(name = "idx_company_list_order", columnList = "deleted_at, created_at DESC")
+    },
+    // 삭제되지 않은 업체 중 이름이 같은 업체가 생기지 않도록 유니크 제약 추가
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "uk_company_name_not_deleted",
+            columnNames = {"name", "deleted_at"} // 삭제되지 않은 경우(null) 유니크 보장
+        )
     }
 )
 @Getter
@@ -160,24 +168,6 @@ public class Company extends BaseUserEntity {
   }
 
   /**
-   * 업체 기본 정보 수정 (이름, 주소, 운영 상태)
-   */
-  public void updateCompanyInfo(String name, CompanyAddress address, CompanyStatus status) {
-
-    validateNotDeleted(); // 업체 삭제 여부 최우선 검증
-
-    // 이름 무결성 검증
-    validateCompanyName(name);
-
-    // 상태 무결성 검증
-    this.status.validateTransitionTo(status);
-
-    this.name = name.trim();
-    this.address = address;
-    this.status = status;
-  }
-
-  /**
    * 일반 정보(이름, 운영 상태) 업데이트 (사용자 API용)
    */
   public void updateInfo(String name, CompanyStatus status) {
@@ -185,7 +175,8 @@ public class Company extends BaseUserEntity {
 
     // 이름 검증
     if (name != null && !name.isBlank()) {
-      this.name = name;
+      validateCompanyName(name);
+      this.name = name.trim();
     }
 
     // 상태값 검증 (필요 시)

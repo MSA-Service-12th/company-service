@@ -10,8 +10,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.validation.annotation.Validated;
 
+@Validated
 public interface JpaCompanyRepository extends CompanyRepository, JpaRepository<Company, UUID> {
+
 
   boolean existsByNameAndDeletedAtIsNull(
       @NotBlank(message = "업체 이름은 필수입니다.") @Size(max = 100, message = "업체 이름은 100자를 초과할 수 없습니다.") @Pattern(regexp = "^[a-zA-Z0-9가-힣()\\[\\]&\\-_ .]{1,100}$",

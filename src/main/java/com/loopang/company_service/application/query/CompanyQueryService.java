@@ -28,7 +28,6 @@ public class CompanyQueryService {
     // 엔티티의 @SQLRestriction("deleted_at IS NULL") 덕분에 삭제된 데이터는 조회되지 않음
     Company company = companyRepository.findById(companyId)
         .orElseThrow(() -> new CompanyNotFoundException("해당 업체를 찾을 수 없습니다."));
-
     return CompanyResponse.from(company);
   }
 

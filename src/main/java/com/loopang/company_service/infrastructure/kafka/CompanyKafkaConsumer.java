@@ -34,6 +34,7 @@ public class CompanyKafkaConsumer {
       eventSubscriber.handleManagerUpdate(event);
     } catch (RuntimeException e) {
       log.error("담당자 수정 이벤트 역직렬화 실패. record value: {}, error: {}", record.value(), e.getMessage());
+      throw e;
     }
   }
 
@@ -47,8 +48,9 @@ public class CompanyKafkaConsumer {
       HubUpdatedEvent event = jsonUtil.fromJson(record.value(), HubUpdatedEvent.class);
       log.info("허브 정보 수정 이벤트 수신: {}", event.hubId());
       eventSubscriber.handleHubUpdate(event);
-    } catch (RuntimeException e) {
+    } catch (Exception e) {
       log.error("허브 수정 이벤트 역직렬화 실패. record value: {}, error: {}", record.value(), e.getMessage());
+      throw e;
     }
   }
 
@@ -68,15 +70,14 @@ public class CompanyKafkaConsumer {
           event.getServiceName(), event.getCompanyId(), event.isSuccess());
 
       if (event.isSuccess()) {
-        companyService.confirmDeleteCompany(event.getCompanyId());
+        companyService.confirmDeleteCompany(event.getCompanyId(), event.getServiceName());
       } else {
         log.error("업체 클린업 실패 보고 수신: 업체 ID = {}, 원인 서비스 = {}",
             event.getCompanyId(), event.getServiceName());
       }
-    } catch (RuntimeException e) {
+    } catch (Exception e) {
       log.error("클린업 완료 이벤트 역직렬화 실패. record value: {}, error: {}", record.value(), e.getMessage());
-      // 중요: 삭제 확정 로직에서 예외가 발생하면 업체가 'DELETING' 상태로 영원히 남을 수 있으므로,
-      // 이 경우 로그를 아주 상세히 남겨 수동 조치가 가능하게 해야 합니다.
+      throw e;
     }
   }
 }

@@ -12,4 +12,5 @@ public interface CompanyRepository {
 
   boolean existsByNameAndDeletedAtIsNull(String name);
 
+  void flush();
 }

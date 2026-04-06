@@ -17,6 +17,5 @@ public class CompanyInfoUpdateRequest {
   @Pattern(regexp = "^[a-zA-Z0-9가-힣()\\[\\]&\\-_ .]{1,100}$")
   private String name;
 
-  @NotBlank(message = "업체 타입은 공백으로 둘 수 없습니다.")
   private CompanyStatus status;
 }
