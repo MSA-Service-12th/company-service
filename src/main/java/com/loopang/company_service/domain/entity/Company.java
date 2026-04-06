@@ -2,6 +2,7 @@ package com.loopang.company_service.domain.entity;
 
 import com.loopang.common.domain.BaseUserEntity;
 import com.loopang.company_service.domain.exception.CompanyBadRequestException;
+import com.loopang.company_service.domain.exception.CompanyConflictException;
 import com.loopang.company_service.domain.exception.CompanyForbiddenException;
 import com.loopang.company_service.domain.vo.CompanyAddress;
 import com.loopang.company_service.domain.vo.CompanyStatus;
@@ -133,7 +134,11 @@ public class Company extends BaseUserEntity {
   }
 
   private void validateNotDeleted() {
-    if (super.isDeleted()) { // BaseUserEntity의 삭제 여부 확인 메서드
+    if (this.status == CompanyStatus.DELETING) {
+      throw new CompanyForbiddenException("이미 삭제 중인 업체입니다.");
+    }
+    if (this.status == CompanyStatus.TERMINATED
+        || super.isDeleted()) { // BaseUserEntity의 삭제 여부 확인 메서드
       throw new CompanyForbiddenException("이미 삭제된 업체입니다.");
     }
   }
@@ -172,26 +177,59 @@ public class Company extends BaseUserEntity {
     this.status = status;
   }
 
+  /**
+   * 일반 정보(이름, 운영 상태) 업데이트 (사용자 API용)
+   */
+  public void updateInfo(String name, CompanyStatus status) {
+    validateNotDeleted(); // 삭제된 업체인지 확인
+
+    // 이름 검증
+    if (name != null && !name.isBlank()) {
+      this.name = name;
+    }
+
+    // 상태값 검증 (필요 시)
+    if (status != null) {
+      this.status.validateTransitionTo(status);
+      this.status = status;
+    }
+
+  }
 
   /**
-   * 담당자 정보 업데이트
+   * 담당자 정보 동기화 업데이트 (이벤트 기반/Dirty Checking 병행용)
    */
-  public void updateManagerInfo(ManagerInfo manager) {
-    validateNotDeleted(); // 업체 삭제 여부 최우선 검증
-    if (manager == null) {
-      throw new CompanyBadRequestException("업데이트할 관리자 정보가 없습니다.");
+  public void updateManager(ManagerInfo manager) {
+    validateNotDeleted();
+
+    // 매니저 정보 자체가 null이거나, 내부 필수값이 없는 경우 방어
+    if (manager == null || manager.getManagerId() == null) {
+      throw new CompanyBadRequestException("유효하지 않은 담당자 정보입니다.");
     }
+
+    // 담당자 이름이 비어있는 채로 동기화되는 것 방지
+    if (manager.getManagerName() == null || manager.getManagerName().isBlank()) {
+      throw new CompanyBadRequestException("업데이트할 담당자 이름이 없습니다.");
+    }
+
     this.manager = manager;
   }
 
   /**
-   * 관리 허브 정보 업데이트
+   * 관리 허브 정보 동기화 업데이트 (이벤트 기반/Dirty Checking 병행용)
    */
-  public void updateHubInfo(HubInfo hub) {
-    validateNotDeleted(); // 업체 삭제 여부 최우선 검증
-    if (hub == null) {
-      throw new CompanyBadRequestException("업데이트할 허브 정보가 없습니다.");
+  public void updateHub(HubInfo hub) {
+    validateNotDeleted();
+
+    if (hub == null || hub.getHubId() == null) {
+      throw new CompanyBadRequestException("유효하지 않은 허브 정보입니다.");
     }
+
+    // 허브 이름 필수 검증
+    if (hub.getHubName() == null || hub.getHubName().isBlank()) {
+      throw new CompanyBadRequestException("업데이트할 허브 이름이 없습니다.");
+    }
+
     this.hub = hub;
   }
 
@@ -220,6 +258,10 @@ public class Company extends BaseUserEntity {
    * 업체 삭제 전 삭제중 상태 변경(시간차 공격 방지)
    */
   public void markAsDeleting() {
+    validateNotDeleted(); // 여기서 이미 DELETING 인지 체크됨
+
+    // 상태 전이 규칙 검증 (OPEN/CLOSED -> DELETING)
+    this.status.validateTransitionTo(CompanyStatus.DELETING);
     this.status = CompanyStatus.DELETING;
   }
 
@@ -228,11 +270,15 @@ public class Company extends BaseUserEntity {
    *
    * @param userId 삭제를 수행하는 관리자 ID
    */
-  public void deleteCompany(UUID userId) {
-    validateNotDeleted(); // 업체 삭제 여부 최우선 검증
+  public void terminate(UUID userId) {
     if (userId == null) {
       throw new CompanyBadRequestException("삭제를 수행하는 사용자 ID가 없습니다.");
     }
+
+    if (this.status != CompanyStatus.DELETING) {
+      throw new CompanyConflictException("삭제 대기 상태가 아닙니다.");
+    }
+
     // 업체명 뒤에 삭제 시간과 UUID 일부를 붙여 Unique 제약 조건 충돌 방지
     // 예: "루팡물류" -> "루팡물류_deleted_20260403_a1b2c3d4"
     this.name = String.format("%s_deleted_%s_%s",
@@ -240,6 +286,9 @@ public class Company extends BaseUserEntity {
         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")),
         UUID.randomUUID().toString().substring(0, 8)
     );
+
+    this.status = CompanyStatus.TERMINATED;
+
     super.delete(userId); // BaseUserEntity의 delete(userId)
   }
 }
