@@ -32,7 +32,7 @@ import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(
-    name = "p_companies",
+    name = "p_company",
     indexes = {
         // 1. 업체명 검색 및 중복 체크용
         @Index(name = "idx_company_name_status", columnList = "deleted_at, name, status"),
@@ -216,11 +216,6 @@ public class Company extends BaseUserEntity {
       throw new CompanyBadRequestException("유효하지 않은 허브 정보입니다.");
     }
 
-    // 허브 이름 필수 검증
-    if (hub.getHubName() == null || hub.getHubName().isBlank()) {
-      throw new CompanyBadRequestException("업데이트할 허브 이름이 없습니다.");
-    }
-
     this.hub = hub;
   }
 
@@ -272,14 +267,22 @@ public class Company extends BaseUserEntity {
 
     // 업체명 뒤에 삭제 시간과 UUID 일부를 붙여 Unique 제약 조건 충돌 방지
     // 예: "루팡물류" -> "루팡물류_deleted_20260403_a1b2c3d4"
-    this.name = String.format("%s_deleted_%s_%s",
-        this.name,
-        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")),
-        UUID.randomUUID().toString().substring(0, 8)
-    );
+    // 1. 대한민국 시간 형식 적용 (KST)
+    String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
 
+    // 2. 고유성을 위한 짧은 접미사 (중복 방지용)
+    String shortId = UUID.randomUUID().toString().substring(0, 8);
+    String suffix = "_deleted_" + timestamp + "_" + shortId; // 약 32자
+
+    // 최대 100자까지만 허용하도록 이름 조절
+    int maxNameLength = 100 - suffix.length();
+    String baseName = this.name.length() > maxNameLength
+        ? this.name.substring(0, maxNameLength)
+        : this.name;
+
+    // 4. 상태 변경 및 Soft Delete 처리
+    this.name = baseName + suffix;
     this.status = CompanyStatus.TERMINATED;
-
     super.delete(userId); // BaseUserEntity의 delete(userId)
   }
 }

@@ -4,6 +4,7 @@ import com.loopang.common.event.Events;
 import com.loopang.common.event.OutboxEvent;
 import com.loopang.company_service.application.dto.CompanyCreateRequest;
 import com.loopang.company_service.application.dto.CompanyInfoUpdateRequest;
+import com.loopang.company_service.application.dto.CompanyResponse;
 import com.loopang.company_service.domain.dto.CoordinateData;
 import com.loopang.company_service.domain.dto.HubData;
 import com.loopang.company_service.domain.dto.ManagerData;
@@ -44,7 +45,7 @@ public class CompanyService {
   /**
    * 업체 생성 (전체 프로세스) &#064;Transactional을 붙이지 않아 외부 API 호출 시에만 DB 커넥션을 점유하지 않음
    */
-  public UUID createCompany(CompanyCreateRequest request) {
+  public CompanyResponse createCompany(CompanyCreateRequest request) {
 
     // 1. 외부 인프라 서비스 연동 (트랜잭션 외부 수행)
     // (1) T-map을 통한 주소 및 좌표 획득
@@ -69,7 +70,13 @@ public class CompanyService {
     HubInfo hub = HubInfo.create(hubData.id(), hubData.name());
 
     // 2. 실제 DB 저장 (별도 트랜잭션 메서드 호출)
-    return creator.save(request.getName(), request.getType(), address, manager, hub);
+    Company savedCompany = creator.save(request.getName(), request.getType(), address, manager,
+        hub);
+
+    log.info("업체 생성 완료: ID={}, Name={}", savedCompany.getId(), savedCompany.getName());
+
+    // 3. 상세 정보 DTO로 변환하여 응답
+    return CompanyResponse.from(savedCompany);
   }
 
   @Transactional
@@ -140,7 +147,10 @@ public class CompanyService {
         .orElseThrow(() -> new CompanyBadRequestException("최종 삭제할 업체를 찾을 수 없습니다."));
 
     // 2. 상태 전이 검증 (DELETING -> TERMINATED)
-    company.getStatus().validateTransitionTo(CompanyStatus.TERMINATED);
+    if (company.getStatus() == CompanyStatus.TERMINATED) {
+      log.info("이미 최종 삭제 처리된 업체입니다: {}", companyId);
+      return;
+    }
 
     // 3. 수신된 서비스 신호를 Inbox에 기록 (중복 저장 방지)
     if (!deletionInboxRepository.existsByCompanyIdAndServiceName(companyId, serviceName)) {

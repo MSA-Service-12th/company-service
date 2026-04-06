@@ -32,7 +32,7 @@ public class CompanyKafkaConsumer {
       ManagerUpdatedEvent event = jsonUtil.fromJson(record.value(), ManagerUpdatedEvent.class);
       log.info("담당자 정보 수정 이벤트 수신: {}", event.managerId());
       eventSubscriber.handleManagerUpdate(event);
-    } catch (RuntimeException e) {
+    } catch (Exception e) {
       log.error("담당자 수정 이벤트 역직렬화 실패. record value: {}, error: {}", record.value(), e.getMessage());
       throw e;
     }
@@ -63,21 +63,43 @@ public class CompanyKafkaConsumer {
       groupId = "company-service-group"
   )
   public void consumeDeleteFinished(ConsumerRecord<String, String> record) {
+    // 1. 역직렬화 (실패 시 Poison Pill 방지를 위해 즉시 return)
+    DeletionFinishedEvent event = deserializeEvent(record);
+    if (event == null) {
+      return;
+    }
+
+    log.info("클린업 신호 수신 - 서비스: {}, 업체 ID: {}, 성공: {}",
+        event.getServiceName(), event.getCompanyId(), event.isSuccess());
+
+    // 2. 실패 신호 처리 (재시도를 위해 예외 발생)
+    if (!event.isSuccess()) {
+      log.error("업체 클린업 실패 보고 수신: 업체 ID = {}, 서비스 = {}, 사유 = {}",
+          event.getCompanyId(), event.getServiceName(), event.getErrorMessage());
+      throw new RuntimeException(
+          "Cleanup failed at " + event.getServiceName() + ": " + event.getErrorMessage());
+    }
+
+    // 3. 비즈니스 로직 실행 (삭제 확정)
     try {
-      DeletionFinishedEvent event = jsonUtil.fromJson(record.value(), DeletionFinishedEvent.class);
-
-      log.info("클린업 완료 신호 수신 - 서비스: {}, 업체 ID: {}, 성공 여부: {}",
-          event.getServiceName(), event.getCompanyId(), event.isSuccess());
-
-      if (event.isSuccess()) {
-        companyService.confirmDeleteCompany(event.getCompanyId(), event.getServiceName());
-      } else {
-        log.error("업체 클린업 실패 보고 수신: 업체 ID = {}, 원인 서비스 = {}",
-            event.getCompanyId(), event.getServiceName());
-      }
+      companyService.confirmDeleteCompany(event.getCompanyId(), event.getServiceName());
     } catch (Exception e) {
-      log.error("클린업 완료 이벤트 역직렬화 실패. record value: {}, error: {}", record.value(), e.getMessage());
+      log.error("업체 최종 삭제 확정 처리 중 오류 (재시도 예정): {}", e.getMessage());
       throw e;
     }
   }
+
+  /**
+   * 역직렬화 헬퍼 메서드
+   */
+  private DeletionFinishedEvent deserializeEvent(ConsumerRecord<String, String> record) {
+    try {
+      return jsonUtil.fromJson(record.value(), DeletionFinishedEvent.class);
+    } catch (Exception e) {
+      log.error("클린업 이벤트 역직렬화 실패 (Poison Pill 방지). record: {}, error: {}",
+          record.value(), e.getMessage());
+      return null;
+    }
+  }
+
 }
