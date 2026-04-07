@@ -37,3 +37,10 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Environment & Secrets ###
+.env
+!.env.example
+
+### Kafka SSL truststore (gitignored, 팀 슬랙 별도 공유) ###
+src/main/resources/ssl/

@@ -1,3 +1,6 @@
+server:
+  port: 18102
+
 spring:
   application:
     name: company-service
@@ -14,15 +17,38 @@ spring:
         enabled: true
         service-id: config-server
 
-  # datasource & jpa 설정은 config-server
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://${DB_URL:localhost:5439/company_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: ${DB_DDL_AUTO:update}
+    properties:
+      hibernate:
+        show_sql: true
+        format_sql: true
 
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${BOOTSTRAP_SERVERS:${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}}
+    properties:
+      security.protocol: SSL
+      ssl.endpoint.identification.algorithm: ""
+    ssl:
+      trust-store-location: classpath:ssl/kafka.server.truststore.jks
+      trust-store-password: ${TRUST_STORE_PASSWORD}
+      trust-store-type: PKCS12
     consumer:
       group-id: company-service-group
+      enable-auto-commit: false
       # value를 String으로 읽어와야 코드의 record.value()가 String
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+    listener:
+      ack-mode: manual
+      concurrency: 3
 
 eureka:
   client:
@@ -33,4 +59,4 @@ eureka:
 
 tmap:
   api:
-    key: ${TMAP_API_KEY}
+    key: ${TMAP_API_KEY:}
