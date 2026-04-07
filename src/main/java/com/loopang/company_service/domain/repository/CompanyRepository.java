@@ -5,7 +5,12 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface CompanyRepository {
+
   Company save(Company company);
+
   Optional<Company> findById(UUID id);
-  boolean existsByName(String name); // 이름 중복 체크용
+
+  boolean existsByNameAndDeletedAtIsNull(String name);
+
+  void flush();
 }

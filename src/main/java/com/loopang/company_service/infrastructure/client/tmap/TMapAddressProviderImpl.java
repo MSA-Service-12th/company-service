@@ -54,7 +54,8 @@ public class TMapAddressProviderImpl implements AddressProvider {
           lat,
           coordinate.getCityDo(),
           coordinate.getGuGun(),
-          dongDoro
+          dongDoro,
+          coordinate.getDetailAddress()
       );
 
     } catch (CustomException e) {

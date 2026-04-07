@@ -10,7 +10,8 @@ public enum CompanyStatus {
 
   OPEN("운영중"),
   CLOSED("운영중단"),
-  DELETING("삭제중");
+  DELETING("삭제중"),
+  TERMINATED("삭제완료");
 //  ON_LEAVE("휴무"); // 고도화 고려
 
   private final String description;
@@ -33,10 +34,11 @@ public enum CompanyStatus {
 
     // 2. 상태 전환 규칙 (현재는 모두 허용하지만 확장성을 위해 switch 구성)
     boolean isAllowed = switch (this) {
-      case OPEN -> nextStatus == CLOSED;  // 영업 -> 폐업 허용
-      case CLOSED -> nextStatus == OPEN;  // 폐업 -> 영업 재개 허용
-      case DELETING -> false;
-      // default -> false; // 나중에 여기서 필터링
+      case OPEN -> nextStatus == CLOSED || nextStatus == DELETING;  // 영업 -> 폐업 허용
+      case CLOSED -> nextStatus == OPEN || nextStatus == DELETING;  // 폐업 -> 영업 재개 허용
+      case DELETING -> nextStatus == TERMINATED;
+      case TERMINATED -> false;
+      default -> false; // 나중에 여기서 필터링
     };
 
     if (!isAllowed) {

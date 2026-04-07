@@ -37,5 +37,8 @@ public class TMapGeoResponse {
 
     private String legalDong;   // 법정동 (구주소 체계) 추가
     private String newRoadName; // 도로명 (신주소 체계)
+
+    @JsonProperty("remainder")
+    private String detailAddress;
   }
 }
