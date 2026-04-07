@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -62,27 +64,35 @@ public class CompanyKafkaConsumer {
       topics = {"delivery-cleanup-topic", "order-cleanup-topic", "product-cleanup-topic"},
       groupId = "company-service-group"
   )
-  public void consumeDeleteFinished(ConsumerRecord<String, String> record) {
+  public void consumeDeleteFinished(ConsumerRecord<String, String> record,
+      @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
     // 1. 역직렬화 (실패 시 Poison Pill 방지를 위해 즉시 return)
     DeletionFinishedEvent event = deserializeEvent(record);
     if (event == null) {
       return;
     }
 
+    String verifiedServiceName = switch (topic) {
+      case "delivery-cleanup-topic" -> "DELIVERY";
+      case "order-cleanup-topic" -> "ORDER";
+      case "product-cleanup-topic" -> "PRODUCT";
+      default -> throw new IllegalArgumentException("허용되지 않은 토픽으로부터의 접근입니다: " + topic);
+    };
+
     log.info("클린업 신호 수신 - 서비스: {}, 업체 ID: {}, 성공: {}",
-        event.getServiceName(), event.getCompanyId(), event.isSuccess());
+        verifiedServiceName, event.getCompanyId(), event.isSuccess());
 
     // 2. 실패 신호 처리 (재시도를 위해 예외 발생)
     if (!event.isSuccess()) {
       log.error("업체 클린업 실패 보고 수신: 업체 ID = {}, 서비스 = {}, 사유 = {}",
-          event.getCompanyId(), event.getServiceName(), event.getErrorMessage());
+          event.getCompanyId(), verifiedServiceName, event.getErrorMessage());
       throw new RuntimeException(
-          "Cleanup failed at " + event.getServiceName() + ": " + event.getErrorMessage());
+          "Cleanup failed at " + verifiedServiceName + ": " + event.getErrorMessage());
     }
 
     // 3. 비즈니스 로직 실행 (삭제 확정)
     try {
-      companyService.confirmDeleteCompany(event.getCompanyId(), event.getServiceName());
+      companyService.confirmDeleteCompany(event.getCompanyId(), verifiedServiceName);
     } catch (Exception e) {
       log.error("업체 최종 삭제 확정 처리 중 오류 (재시도 예정): {}", e.getMessage());
       throw e;

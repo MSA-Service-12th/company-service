@@ -97,7 +97,7 @@ public class Company extends BaseUserEntity {
   private Company(String name, CompanyType type,
       CompanyAddress address, ManagerInfo manager, HubInfo hub) {
     // 무결성 검증
-    validateRequiredFields(name, type, address, hub);
+    validateRequiredFields(name, type, address, manager, hub);
     this.name = name.trim();
     this.type = type;
     this.status = CompanyStatus.OPEN;
@@ -107,7 +107,7 @@ public class Company extends BaseUserEntity {
   }
 
   private void validateRequiredFields(String name, CompanyType type, CompanyAddress address,
-      HubInfo hub) {
+      ManagerInfo manager, HubInfo hub) {
 
     // 업체 이름 무결성 검증
     validateCompanyName(name);

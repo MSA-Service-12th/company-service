@@ -85,9 +85,11 @@ public class CompanyService {
     Company company = companyRepository.findById(companyId)
         .orElseThrow(() -> new CompanyBadRequestException("해당 업체를 찾을 수 없습니다."));
 
+    String normalizedName = request.getName() == null ? null : request.getName().trim();
+
     // 2. 이름 변경 요청이 있는 경우에만 중복 체크
-    if (request.getName() != null && !request.getName().equals(company.getName())) {
-      if (companyRepository.existsByNameAndDeletedAtIsNull(request.getName())) {
+    if (normalizedName != null && !normalizedName.equals(company.getName())) {
+      if (companyRepository.existsByNameAndDeletedAtIsNull(normalizedName)) {
         throw new CompanyBadRequestException("이미 사용 중인 업체 이름입니다.");
       }
     }
@@ -97,7 +99,7 @@ public class CompanyService {
         ? request.getStatus()
         : null;
 
-    company.updateInfo(request.getName(), newStatus);
+    company.updateInfo(normalizedName, newStatus);
 
     // 4. Outbox 이벤트 발행
     // 공통 모듈의 OutboxEventListener가 이 이벤트를 받아 p_outbox에 저장합니다.
