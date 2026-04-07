@@ -51,6 +51,7 @@ dependencies {
     implementation 'org.springframework.cloud:spring-cloud-starter-config'
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'me.paulschwarz:spring-dotenv:4.0.0'
 
     // 5. Test (Common에 없는 테스트 라이브러리만 추가)
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
