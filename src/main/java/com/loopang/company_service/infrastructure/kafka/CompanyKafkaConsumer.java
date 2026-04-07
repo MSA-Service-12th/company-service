@@ -28,7 +28,7 @@ public class CompanyKafkaConsumer {
    * 담당자(User) 정보 수정 이벤트 구독
    */
   @IdempotentConsumer("company-service-manager-update")
-  @KafkaListener(topics = "user-update-topic", groupId = "company-service-group")
+  @KafkaListener(topics = "user-update-topic", groupId = "company-group")
   public void consumeManagerUpdate(ConsumerRecord<String, String> record) {
     try {
       ManagerUpdatedEvent event = jsonUtil.fromJson(record.value(), ManagerUpdatedEvent.class);
@@ -44,7 +44,7 @@ public class CompanyKafkaConsumer {
    * 허브(Hub) 정보 수정 이벤트 구독
    */
   @IdempotentConsumer("company-service-hub-update")
-  @KafkaListener(topics = "hub-update-topic", groupId = "company-service-group")
+  @KafkaListener(topics = "hub-update-topic", groupId = "company-group")
   public void consumeHubUpdate(ConsumerRecord<String, String> record) {
     try {
       HubUpdatedEvent event = jsonUtil.fromJson(record.value(), HubUpdatedEvent.class);
@@ -62,7 +62,7 @@ public class CompanyKafkaConsumer {
   @IdempotentConsumer("company-deletion-confirm-inbox")
   @KafkaListener(
       topics = {"delivery-cleanup-topic", "order-cleanup-topic", "product-cleanup-topic"},
-      groupId = "company-service-group"
+      groupId = "company-group"
   )
   public void consumeDeleteFinished(ConsumerRecord<String, String> record,
       @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {

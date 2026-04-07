@@ -1,7 +1,9 @@
 package com.loopang.company_service.application;
 
+import com.loopang.common.config.security.UserDetailsImpl;
 import com.loopang.common.event.Events;
 import com.loopang.common.event.OutboxEvent;
+import com.loopang.common.util.SecurityUtil;
 import com.loopang.company_service.application.dto.CompanyCreateRequest;
 import com.loopang.company_service.application.dto.CompanyInfoUpdateRequest;
 import com.loopang.company_service.application.dto.CompanyResponse;
@@ -14,6 +16,8 @@ import com.loopang.company_service.domain.event.CompanyDeletedEvent;
 import com.loopang.company_service.domain.event.CompanyTerminatedEvent;
 import com.loopang.company_service.domain.event.CompanyUpdatedEvent;
 import com.loopang.company_service.domain.exception.CompanyBadRequestException;
+import com.loopang.company_service.domain.exception.CompanyForbiddenException;
+import com.loopang.company_service.domain.exception.CompanyUnAuthorizedException;
 import com.loopang.company_service.domain.repository.CompanyDeletionInboxRepository;
 import com.loopang.company_service.domain.repository.CompanyRepository;
 import com.loopang.company_service.domain.service.AddressProvider;
@@ -27,6 +31,7 @@ import com.loopang.company_service.domain.vo.ManagerInfo;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.usertype.UserType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,6 +51,13 @@ public class CompanyService {
    * 업체 생성 (전체 프로세스) &#064;Transactional을 붙이지 않아 외부 API 호출 시에만 DB 커넥션을 점유하지 않음
    */
   public CompanyResponse createCompany(CompanyCreateRequest request) {
+
+//    // 1. 현재 인증된 사용자 정보 가져오기 (공통 모듈 활용)
+//    UserDetailsImpl currentUser = SecurityUtil.getCurrentUser()
+//        .orElseThrow(CompanyUnAuthorizedException::new);
+//
+//    // 2. 상세 인가 체크 (Ownership Validation)
+//    validateCreatePermission(currentUser, request.getHubId());
 
     // 1. 외부 인프라 서비스 연동 (트랜잭션 외부 수행)
     // (1) T-map을 통한 주소 및 좌표 획득
@@ -187,5 +199,24 @@ public class CompanyService {
       log.info("업체 최종 삭제 확정 완료: ID={}", companyId);
     }
   }
+
+//  private void validateCreatePermission(UserDetailsImpl user, UUID targetHubId) {
+//    // MASTER 권한은 모든 허브에 생성 가능
+//    if (user.getRoles() == UserType.MASTER) {
+//      return;
+//    }
+//
+//    // HUB_MANAGER 권한 체크
+//    if (user.getRoles() == UserType.HUB_MANAGER) {
+//      // 요청된 허브 ID가 본인에게 할당된 허브 ID와 일치하는지 검증
+//      if (user. == null || !user.getHubId().equals(targetHubId)) {
+//        throw new CompanyForbiddenException("본인이 관리하는 허브에만 업체를 등록할 수 있습니다.");
+//      }
+//      return;
+//    }
+//
+//    // 그 외 권한(COMPANY_MANAGER, DELIVERY_PERSON 등)은 생성 불가
+//    throw new CompanyForbiddenException("업체 생성 권한이 없습니다.");
+//  }
 
 }
